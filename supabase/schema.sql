@@ -1,0 +1,22 @@
+create extension if not exists pgcrypto;
+create table if not exists public.profiles(id uuid primary key references auth.users(id) on delete cascade,full_name text,role text not null default 'staff' check(role in('admin','staff')),created_at timestamptz default now());
+create table if not exists public.brands(id uuid primary key default gen_random_uuid(),name text not null,category text not null check(category in('Brandy','Whisky','Rum','Vodka','Gin','Beer','Breezer','Wine')),active boolean not null default true,created_at timestamptz default now(),unique(category,name));
+create table if not exists public.brand_prices(id uuid primary key default gen_random_uuid(),brand_id uuid not null references public.brands(id) on delete cascade,volume_key text not null check(volume_key in('full','half','quarter')),rate numeric(12,2) not null default 0 check(rate>=0),updated_at timestamptz default now(),unique(brand_id,volume_key));
+create table if not exists public.daily_entries(id uuid primary key default gen_random_uuid(),entry_date date not null unique,created_by uuid references auth.users(id),created_at timestamptz default now(),updated_at timestamptz default now());
+create table if not exists public.daily_entry_lines(id uuid primary key default gen_random_uuid(),entry_id uuid not null references public.daily_entries(id) on delete cascade,brand_id uuid not null references public.brands(id),volume_key text not null check(volume_key in('full','half','quarter')),opening_balance integer not null default 0 check(opening_balance>=0),received integer not null default 0 check(received>=0),closing_balance integer not null default 0 check(closing_balance>=0),rate numeric(12,2) not null default 0 check(rate>=0),created_at timestamptz default now(),unique(entry_id,brand_id,volume_key),check(closing_balance<=opening_balance+received));
+create or replace function public.new_profile() returns trigger language plpgsql security definer set search_path='' as $$ begin insert into public.profiles(id,full_name,role) values(new.id,coalesce(new.raw_user_meta_data->>'full_name',''),'staff') on conflict(id) do nothing;return new;end;$$;
+drop trigger if exists auth_user_profile on auth.users;
+create trigger auth_user_profile after insert on auth.users for each row execute procedure public.new_profile();
+create or replace function public.is_admin() returns boolean language sql stable security definer set search_path='' as $$ select exists(select 1 from public.profiles where id=(select auth.uid()) and role='admin');$$;
+alter table public.profiles enable row level security;alter table public.brands enable row level security;alter table public.brand_prices enable row level security;alter table public.daily_entries enable row level security;alter table public.daily_entry_lines enable row level security;
+drop policy if exists "profile own or admin" on public.profiles;
+create policy "profile own or admin" on public.profiles for select to authenticated using(id=(select auth.uid()) or public.is_admin());
+drop policy if exists "admin update profiles" on public.profiles;
+create policy "admin update profiles" on public.profiles for update to authenticated using(public.is_admin()) with check(public.is_admin());
+do $$ declare t text; begin foreach t in array array['brands','brand_prices','daily_entries','daily_entry_lines'] loop execute format('drop policy if exists "admin full access" on public.%I',t);execute format('create policy "admin full access" on public.%I for all to authenticated using(public.is_admin()) with check(public.is_admin())',t);end loop;end $$;
+grant usage on schema public to authenticated;
+grant select,insert,update,delete on public.profiles,public.brands,public.brand_prices,public.daily_entries,public.daily_entry_lines to authenticated;
+grant execute on function public.is_admin() to authenticated;
+-- Create a user in Supabase Authentication > Users, copy their UUID, then run:
+-- update public.profiles set role='admin',full_name='Garden Court Admin' where id='PASTE-USER-UUID';
+insert into public.brands(name,category) values('Bexos','Brandy'),('Silver Cup','Brandy'),('Old Admiral','Brandy'),('Courrier Napoleon','Brandy'),('Morpheus Brandy','Brandy'),('Morpheus Blue','Brandy'),('C.D. Napoleon Red','Brandy'),('Honeybee','Brandy'),('Friends Club','Brandy'),('Bagpiper','Whisky'),('100 Pipers','Whisky'),('Teachers','Whisky'),('Black Dog','Whisky'),('Black & White','Whisky'),('Royal Challenge','Whisky'),('Signature','Whisky'),('Oaksmith','Whisky') on conflict(category,name) do nothing;
