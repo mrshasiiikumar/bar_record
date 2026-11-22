@@ -548,9 +548,7 @@ function downloadDailyPdf() {
               <Stat label="Sales amount" value={cash(list.reduce((s, b) => s + volumesFor(b.id).reduce((t, v) => t + calc(b, v).amount, 0), 0))} />
             </div>
             <div className="actions">
-  <button className="secondary" onClick={() => L({})}>
-    Clear inputs
-  </button>
+  
 
   <button className="secondary" onClick={downloadDailyPdf}>
     <Printer /> Download PDF
