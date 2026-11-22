@@ -484,7 +484,7 @@ function downloadDailyPdf() {
       <header>
         <div className="logo"><Wine /> <span>GARDEN COURT<small>BAR & RESTAURANT</small></span></div>
         <div>
-          <ShieldCheck /> ADMIN ONLY <span>{profile.full_name || session.user.email}</span>
+          <ShieldCheck /> RAJU BAR-1 <span>{profile.full_name || session.user.email}</span>
           <button onClick={() => db.auth.signOut()}><LogOut /></button>
         </div>
       </header>
