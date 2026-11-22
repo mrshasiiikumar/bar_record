@@ -576,7 +576,9 @@ function downloadDailyPdf() {
               <table>
                 <thead><tr><th>Brand</th><th>Category</th><th>Available sizes</th><th>Status</th><th>Actions</th></tr></thead>
                 <tbody>
-                  {brands.filter(b => b.name.toLowerCase().includes(search.toLowerCase())).map(b => (
+                 {brands.filter(b =>
+  b.active && b.name.toLowerCase().includes(search.toLowerCase())
+).map(b => (
                     <tr key={b.id}>
                       <td>{b.name}</td>
                       <td>{b.category}</td>
