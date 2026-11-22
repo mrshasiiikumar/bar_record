@@ -173,6 +173,115 @@ export default function App() {
     return { key, x, total, cb, sold, rate, amount: sold * rate };
   }
 
+function downloadDailyPdf() {
+  const rows = brands
+    .filter(brand => brand.active)
+    .flatMap(brand =>
+      volumesFor(brand.id).map(volume => {
+        const result = calc(brand, volume);
+
+        return `
+          <tr>
+            <td>${brand.name}</td>
+            <td>${brand.category}</td>
+            <td>${volume[1]} (${volume[2]} ml)</td>
+            <td>${result.x.ob}</td>
+            <td>${result.x.rec}</td>
+            <td>${result.total}</td>
+            <td>${result.cb}</td>
+            <td>${result.sold}</td>
+            <td>₹${result.rate}</td>
+            <td>₹${result.amount}</td>
+          </tr>
+        `;
+      })
+    ).join("");
+
+  const totalSold = brands
+    .filter(b => b.active)
+    .reduce((sum, b) =>
+      sum + volumesFor(b.id).reduce(
+        (s, v) => s + calc(b, v).sold, 0
+      ), 0
+    );
+
+  const totalAmount = brands
+    .filter(b => b.active)
+    .reduce((sum, b) =>
+      sum + volumesFor(b.id).reduce(
+        (s, v) => s + calc(b, v).amount, 0
+      ), 0
+    );
+
+  const win = window.open("", "_blank");
+
+  if (!win) {
+    alert("Please allow pop-ups and try again.");
+    return;
+  }
+
+  win.document.write(`
+    <html>
+    <head>
+      <title>Daily Stock Register</title>
+      <style>
+        body { font-family: Arial; padding: 20px; }
+        h1, h2, p { text-align: center; }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 11px;
+        }
+        th, td {
+          border: 1px solid black;
+          padding: 7px;
+          text-align: center;
+        }
+        th { background: #eee; }
+        .totals { margin-top: 20px; font-weight: bold; }
+        @page { size: A4 landscape; margin: 10mm; }
+      </style>
+    </head>
+    <body>
+      <h1>GARDEN COURT BAR & RESTAURANT</h1>
+      <h2>DAILY STOCK REGISTER</h2>
+      <p>Date: ${date}</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Brand</th>
+            <th>Category</th>
+            <th>Volume</th>
+            <th>Opening</th>
+            <th>Received</th>
+            <th>Total</th>
+            <th>Closing</th>
+            <th>Sales</th>
+            <th>Rate</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+
+      <div class="totals">
+        Total Bottles Sold: ${totalSold}<br/><br/>
+        Total Sales Amount: ₹${totalAmount.toLocaleString("en-IN")}
+      </div>
+    </body>
+    </html>
+  `);
+
+  win.document.close();
+  win.onload = () => {
+    win.print();
+  };
+}
+
+
   function change(key, f, val) {
     L(old => ({
       ...old,
@@ -439,10 +548,19 @@ export default function App() {
               <Stat label="Sales amount" value={cash(list.reduce((s, b) => s + volumesFor(b.id).reduce((t, v) => t + calc(b, v).amount, 0), 0))} />
             </div>
             <div className="actions">
-              <button className="secondary" onClick={() => L({})}>Clear inputs</button>
-              <button className="primary" disabled={busy} onClick={saveDay}><Save />{busy ? "Saving…" : "Save daily entry"}</button>
-            </div>
-          </section>
+  <button className="secondary" onClick={() => L({})}>
+    Clear inputs
+  </button>
+
+  <button className="secondary" onClick={downloadDailyPdf}>
+    <Printer /> Download PDF
+  </button>
+
+  <button className="primary" disabled={busy} onClick={saveDay}>
+    <Save />{busy ? "Saving…" : "Save daily entry"}
+  </button>
+  </div>
+  </section>
         )}
 
         {page === "brands" && (
